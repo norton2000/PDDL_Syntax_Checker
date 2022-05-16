@@ -609,8 +609,12 @@ def computeDifferenceInParametersName(expr1, expr2):
             cond2 = conds2[index]
             params = cond.parameters
             params2 = cond2.parameters
-            for i, param in enumerate(params):
-                paramname2namefinal[]
+            if len(params)!=len(params2):
+                print("ERROR, i parametri non corrispondono")  #Temp
+            if params != params2:
+                for i, param in enumerate(params):
+                    if not params2[i] in paramname2namefinal.keys()
+                        paramname2namefinal[params2[i]] = param
 
 def actionUnion(domain, action1, action2):
     #Unisce le due azioni in una in modo tale che abbia le precondizioni della prima e gli effetti quelli totali
