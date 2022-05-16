@@ -32,6 +32,7 @@ class Domain():
         self.name = None
         self.predicates = []
         self.actions = []
+        self.requirements = []
         self.typing = False
         self.objects = None
     
@@ -40,6 +41,9 @@ class Domain():
     
     def addAction(self, action):
         self.actions.append(action)
+        
+    def addRequirement(self, req):
+        self.requirements.append(req)
     
     def checkPredicate(self, name, length):
         predicate = findPredicate(name)
@@ -50,7 +54,7 @@ class Domain():
     
     def activeTyping(self):
         self.typing = True
-        self.objects = [Object("object")]
+        self.objects = []
     
     def addObject(self, obj):
         self.objects.append(obj)
@@ -82,7 +86,7 @@ class Object():
 class Predicate():
     def __init__(self, name, arguments = []):
         self.name = name
-        self.arguments = arguments
+        self.arguments = arguments              
     
     def addArgument(self, argument):
         self.arguments.append(argument)
@@ -95,7 +99,7 @@ class Predicate():
         return list(map(lambda x: x.obj, self.arguments))
         
     def __str__(self):
-        return str(self.name) + ": " + ", ".join(map(str,self.arguments))
+        return str(self.name) + " " + " ".join(map(str,self.arguments))
     
     def __eq__(self, other):
         if isinstance(other, Predicate):
@@ -107,7 +111,7 @@ class Condition():
         self.name = name
         self.arguments = arguments
         self.positive=positive
-    
+        
     def addArgument(self, argument):
         self.arguments.append(argument)
         
@@ -115,8 +119,14 @@ class Condition():
         return len(self.arguments)
         
     def __str__(self):
-        ante = "" if self.positive else "not "
-        return ante + "("  + self.name + " " +" ".join(map(str,self.arguments)) + ")"
+        ante = "" if self.positive else "(not "
+        post = "" if self.positive else ")"
+        return ante + "("  + self.name + " " +" ".join(map(str,self.arguments)) + ")" + post
+        
+    def __eq__(self, other):
+        if isinstance(other, Condition):
+            return self.name == other.name and self.positive == other.positive
+        return NotImplemented
 
 class Parameter():
     def __init__(self, name, obj = None):
@@ -164,7 +174,19 @@ class LogicExpression():
     def __str__(self):
         if self.name == "forall":
             return f"{self.name} (" + " ".join(map(str,self.arguments[0])) + ") (" +" ".join(map(str,self.arguments[1])) + ")"
-        return f"{self.name} (" + " ".join(map(str,self.arguments)) + ")"
+        return f"({self.name} " + " ".join(map(str,self.arguments)) + ")"
+    
+    def __eq__(self, other):
+        if isinstance(other, LogicExpression):
+            if self.name == other.name:
+                end = True
+                for arg in self.arguments:
+                    end = end and (arg in other.arguments)
+                    if not end: return end
+                return end
+        if isinstance(other, Condition):
+            return False
+        return NotImplemented
     
 #Function that take an expected expression and the expression and check that they are equal, if not they ryse an SynError.
 def expect(expected, current_token, err=True):
@@ -206,6 +228,7 @@ def checkRequirements(lista):
             return
         if req[1:] == "typing":
             domain.activeTyping();
+        domain.addRequirement(req)
 
 def addObjects(objsName,parent=None):
     for objName in objsName:
@@ -327,7 +350,6 @@ def analyzeSingleCond(elem,parameters,nameAction):
 def analyzeCond(lista, parameters,nameAction,notAllowed = []):
     return computeLogicExpression(lista,parameters,nameAction,notAllowed)
         
-
 def checkAction(action):
     expect(":action",action[0])
     name = action[1][0]
@@ -372,7 +394,7 @@ def parse_list_aux(tokenstream):
             yield (token,n_line)
 
 #MAIN
-fileName = os.getcwd() + "\\Examples\\domainWiki.pddl"
+fileName = os.getcwd() + "\\Examples\\domain-processed.pddl"
 domain = Domain()
 try:
     input_file = open(fileName, "r").readlines()
@@ -409,6 +431,7 @@ try:
         #print()
         #print(action.precondition[0])
     print(domain)
+    print()
 
 except ParseError as err:
     print(err)
@@ -485,9 +508,10 @@ def checkSingleProblemCondition(cond):
         obj = problem.findObject(cond[i][0])
         if not obj:
             raise SynError(f'The object {cond[i][0]} Does not exist in the current problem.', n_line, cond[i][0])
-        typeReal = obj.obj
-        if not checkTypingBetweenObject(typeRequest,typeReal):
-            raise SynError(f'The object {cond[i][0]} is of the type {typeReal.name}, whereas the predicate {word} wants as its {i} object the type {objRequest.name}.', n_line, cond[i][0])
+        if(domain.typing):
+            typeReal = obj.obj
+            if not checkTypingBetweenObject(typeRequest,typeReal):
+                raise SynError(f'The object {cond[i][0]} is of the type {typeReal.name}, whereas the predicate {word} wants as its {i} object the type {objRequest.name}.', n_line, cond[i][0])
         objs.append(obj)
         i+=1
     #Uso il nome per creare un nuovo predicato perché quello che ho nel dominio non ha collegato gli oggetti giusti
@@ -501,9 +525,7 @@ def checkInit(lista):
     
 def checkGoal(lista):
     expect(":goal",lista[0])
-    print(lista)
-    parameters = list(map(lambda elem: "?"+elem.name,problem.objects))
-    print(lista[1])
+    parameters = list(map(lambda elem: elem.name,problem.objects))
     goal = analyzeCond(lista[1],parameters,"Goal")
     problem.setGoal(goal)
     
@@ -544,3 +566,139 @@ except (SynError,SupportException) as err:
     if pos != -1:
         print(" " * (pos+4) + "^")
     print(f'SyntaxPddlError: {err}')
+    
+    
+def condInExp(cond, exp):
+    #Data una condizione e un espressione, ritorna True se quella condizione compare nell'espressione
+    if isinstance(exp, Condition):
+        return cond == exp
+    exist = False
+    for c in exp.arguments:
+        exist = exist or condInExp(cond,c)
+        if exist: return exist
+    return exist
+
+def allCondinExp(exp):
+#Dato un espressione logica ritorna tutte e solo le condizioni all'interno dell'espressione
+    if isinstance(exp, Condition):
+        return [exp]
+    conds = []
+    for cond in exp.arguments:
+        conds += allCondinExp(cond)
+    return conds
+
+def checkPossibleActionUnion(domain, problem):      #Controlla se è possibile unire due azioni
+#Puoi unire due azioni se la precondition di una equivale alla postcondition dell'altra
+#e nessun altra azioni o il goal richiede qualcosa in queste precondizioni
+    for action in domain.actions:
+        effect = action.effect
+        for other in domain.actions:
+            if effect == other.precondition:        #Gli effetti di 'action' sono all'interno delle precondizioni di 'other'
+                if action == other:     #in questo caso precondizioni e effetti di un azione coincidono... si può fare qualcosa
+                    continue
+                print(f"Trovata! azione {action.name} con azione {other.name}")
+                #Controlla che effetti non siano un goal
+                
+                #Controlla che queste non siano pre di qualcos'altro
+                valid = True
+                print(allCondinExp(other.precondition))
+                for cond in allCondinExp(other.precondition):  
+                    if condInExp(cond,problem.goal):
+                        print(f"Condizione {cond} trovata nel goal")
+                        valid = False
+                        break
+                    for act in domain.actions:
+                        if act == action or act == other:
+                            continue
+                        if condInExp(cond, act.precondition):
+                            print(f"trovata condizione {cond} in azione {act.name}")
+                            valid = False
+                            break
+                    if not valid:
+                        break
+                if not valid:
+                    continue
+                print(f"Posso unire queste due azioni: {action.name}, {other.name}")
+    print("Finito")
+
+checkPossibleActionUnion(domain,problem)
+
+
+def processTypeForWriting(types):
+    #ritorna un array con tutti gli object (type) scritti correttamente per una stampa
+    noneParent = []
+    parent2child = {}
+    elements_processed = []
+    rows = []   #vettore di output, contine stringhe
+    #Costruisci il dizionario parenti -> array di figli
+    for ob in types:
+        if not ob.parent:
+            noneParent.append(ob.name)
+            continue
+        if ob.parent.name in parent2child.keys():
+            parent2child[ob.parent.name].append(ob.name)
+        else:
+            parent2child[ob.parent.name] = [ob.name]
+    #Ora inizia a scrivere, prima quelli che non hanno parenti
+    for par in noneParent:
+        try:
+            elements = parent2child.pop(par)
+            elements_processed += elements
+            rows.append(" ".join(elements) + f" - {par}")
+        except:
+            print("C'è qualche problema, un NoneType!")          #Temp
+    #Ora scrivi tutti, scrivendo prima quelli i cui parenti sono già stati scritti
+    while len(parent2child)> 0:
+        add_processed = []
+        for elem in elements_processed:
+            if elem in parent2child.keys():
+                elements = parent2child.pop(elem)
+                add_processed += elements
+                rows.append(" ".join(map(str,elements)) + f" - {elem}")
+        if len(add_processed) == 0:     #Se hai fatto un iterazione senza aggiungere nulla c'è qualche problema
+            print("Problema, Non sono riuscito a mettere tutti") #Temp
+            break
+        elements_processed += add_processed
+    return rows
+
+
+fileNameDoOud = os.getcwd() + "\\Examples\\domain-processed.pddl"
+def rewrite():
+    with open(fileNameDoOud, "w") as f:
+        #Write domain and domain name
+        f.write(f"(define (domain {domain.name})\n")
+        #write requirements
+        if len(domain.requirements) > 0:
+            f.write("\t(:requirements " + " ".join(map(str,domain.requirements)))
+            f.write(")\n")
+        #write typing
+        if domain.typing:
+            f.write("\t(:types \n\t\t")
+            f.write("\n\t\t".join(processTypeForWriting(domain.objects)))
+            f.write("\n\t)\n\n")
+        
+        #Write Predicates
+        f.write(f"\t(:predicates\n\t\t")
+        for i in range(len(domain.predicates)-1):
+            f.write(f"({domain.predicates[i]})")
+            f.write("\n\t\t")
+        f.write(f"({domain.predicates[-1]})\n\t)\n\n")
+        
+        #Write actions
+        for action in domain.actions:
+            #Write aciton name
+            f.write(f"\t(:action {action.name}\n")
+            #write action parameter
+            f.write("\t\t:parameters ("+ ' '.join(map(str,action.parameters)))
+            f.write(")\n")
+            #Write precondition
+            f.write("\t\t:precondition ")
+            f.write(str(action.precondition))
+            f.write("\n")
+            #Write effect
+            f.write("\t\t:effect ")
+            f.write(str(action.effect))
+            
+            f.write("\n\t)\n\n")
+        f.write(")")
+rewrite()

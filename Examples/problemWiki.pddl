@@ -13,9 +13,9 @@
         (on-site w s1)
     )
     (:goal (and
-            (walls-built ?s1)
-            (cables-installed ?s1)
-            (windows-fitted ?s1)
+            (walls-built s1)
+            (cables-installed s1)
+            (windows-fitted s1)
         )
     )
 )

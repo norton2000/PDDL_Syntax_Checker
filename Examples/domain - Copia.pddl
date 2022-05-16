@@ -1,7 +1,7 @@
 ;COME ; State?
 
 (define (domain gripper-strips)
-(:requirements :strips :typing)
+(:requirements :strips :negative-preconditions)
    (:predicates (room ?r)
         (ball ?b)
         (gripper ?g)
@@ -21,7 +21,7 @@
    (:action pick
        :parameters (?obj ?room ?gripper)
        :precondition  (and  (ball ?obj) (room ?room) (gripper ?gripper)
-			    (at ?obj ?room) (at-robby ?room) (free ?gripper))
+			    (at-robby ?room))
        :effect (and (carry ?obj ?gripper)
 		    (not (at ?obj ?room)) 
 		    (not (free ?gripper))))
