@@ -613,9 +613,16 @@ def computeDifferenceInParametersName(expr1, expr2):
                 print("ERROR, i parametri non corrispondono")  #Temp
             if params != params2:
                 for i, param in enumerate(params):
-                    if not params2[i] in paramname2namefinal.keys():
+                    if params2[i]!=param and not params2[i] in paramname2namefinal.keys():
                         paramname2namefinal[params2[i]] = param
     return paramname2namefinal
+
+def changeParameters2Expr(expr, namepre2namepost):
+    #Cambia il nome di tutti i parametri nell'espressione logica se presenti nel dizionario
+    for cond in allCondinExp(expr):
+        for i, par in enumerate(cond.arguments):
+            if par in namepre2namepost.keys():
+                cond.arguments[i] = namepre2namepost[par]
 
 def actionUnion(domain, action1, action2):
     #Unisce le due azioni in una in modo tale che abbia le precondizioni della prima e gli effetti quelli totali
@@ -627,7 +634,8 @@ def actionUnion(domain, action1, action2):
     currParameters = computeParametersInExpr(precondition)
     print(currParameters)
     print(computeDifferenceInParametersName(action1.effect,action2.precondition))
-    
+    changeParameters2Expr(action2.precondition, computeDifferenceInParametersName(action1.effect,action2.precondition))
+    print(action2)
     #newAction = Action(name, parameters, precodition, effect)
 
 def checkPossibleActionUnion(domain, problem):      #Controlla se è possibile unire due azioni
