@@ -36,9 +36,9 @@
 		    (not (carry ?obj ?gripper))))
 	
 	(:action temp
-       :parameters  (?obj  ?room ?gripper)
+       :parameters  (?obj1  ?room2 ?gripper)
        :precondition  (and (free ?gripper)
-			(at ?obj ?room)
-		    (not (carry ?obj ?gripper)))
-       :effect (and (not (at ?obj ?room)) 
+			(at ?obj1 ?room2)
+		    (not (carry ?obj1 ?gripper)))
+       :effect (and (not (at ?obj1 ?room2)) 
 		    (not (free ?gripper)))))

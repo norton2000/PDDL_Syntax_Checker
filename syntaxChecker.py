@@ -41,6 +41,9 @@ class Domain():
     
     def addAction(self, action):
         self.actions.append(action)
+    
+    def deleteAction(self, action):
+        self.actions.remove(action)
         
     def addRequirement(self, req):
         self.requirements.append(req)
@@ -394,7 +397,7 @@ def parse_list_aux(tokenstream):
             yield (token,n_line)
 
 #MAIN
-fileName = os.getcwd() + "\\Examples\\domain-processed.pddl"
+fileName = os.getcwd() + "\\Examples\\domain - Copia.pddl"
 domain = Domain()
 try:
     input_file = open(fileName, "r").readlines()
@@ -529,7 +532,7 @@ def checkGoal(lista):
     goal = analyzeCond(lista[1],parameters,"Goal")
     problem.setGoal(goal)
     
-fileNamePr = os.getcwd() + "\\Examples\\problemWiki.pddl"
+fileNamePr = os.getcwd() + "\\Examples\\problem.pddl"
 problem = Problem(domain)
 try:
     input_filePr = open(fileNamePr, "r").readlines()
@@ -586,6 +589,40 @@ def allCondinExp(exp):
     for cond in exp.arguments:
         conds += allCondinExp(cond)
     return conds
+
+def computeParametersInExpr(logicExpr):
+    allParam = {}       #Un set
+    for cond in allCondinExp(logicExpr):
+        params = cond.parameters
+        for elem in params:
+            if not allParam.Count(elem):
+                allParam.add(elem)
+    return allParam
+
+def computeDifferenceInParametersName(expr1, expr2):
+    conds1 = allCondinExp(expr1)
+    conds2 = allCondinExp(expr2)
+    paramname2namefinal = {}
+    for cond in conds1:
+        if cond in conds2:
+            index = conds2.index(cond)
+            cond2 = conds2[index]
+            params = cond.parameters
+            params2 = cond2.parameters
+            for i, param in enumerate(params):
+                paramname2namefinal[]
+
+def actionUnion(domain, action1, action2):
+    #Unisce le due azioni in una in modo tale che abbia le precondizioni della prima e gli effetti quelli totali
+    domain.deleteAction(action1)    #Rimuove l'azione dal dominio
+    domain.deleteAction(action2)
+    
+    name = action1.name+"-"+action2.name
+    precondition = action1.precondition
+    currParameters = computeParametersInExpr(precondition)
+    parameters = 
+    
+    newAction = Action(name, parameters, precodition, effect)
 
 def checkPossibleActionUnion(domain, problem):      #Controlla se è possibile unire due azioni
 #Puoi unire due azioni se la precondition di una equivale alla postcondition dell'altra
@@ -676,14 +713,12 @@ def rewrite():
             f.write("\t(:types \n\t\t")
             f.write("\n\t\t".join(processTypeForWriting(domain.objects)))
             f.write("\n\t)\n\n")
-        
         #Write Predicates
         f.write(f"\t(:predicates\n\t\t")
         for i in range(len(domain.predicates)-1):
             f.write(f"({domain.predicates[i]})")
             f.write("\n\t\t")
         f.write(f"({domain.predicates[-1]})\n\t)\n\n")
-        
         #Write actions
         for action in domain.actions:
             #Write aciton name
@@ -698,7 +733,6 @@ def rewrite():
             #Write effect
             f.write("\t\t:effect ")
             f.write(str(action.effect))
-            
             f.write("\n\t)\n\n")
         f.write(")")
 rewrite()
