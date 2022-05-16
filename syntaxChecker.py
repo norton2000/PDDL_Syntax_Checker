@@ -591,11 +591,11 @@ def allCondinExp(exp):
     return conds
 
 def computeParametersInExpr(logicExpr):
-    allParam = {}       #Un set
+    allParam = set({})       #Un set
     for cond in allCondinExp(logicExpr):
-        params = cond.parameters
+        params = cond.arguments
         for elem in params:
-            if not allParam.Count(elem):
+            if not elem in allParam:
                 allParam.add(elem)
     return allParam
 
@@ -607,14 +607,15 @@ def computeDifferenceInParametersName(expr1, expr2):
         if cond in conds2:
             index = conds2.index(cond)
             cond2 = conds2[index]
-            params = cond.parameters
-            params2 = cond2.parameters
+            params = cond.arguments
+            params2 = cond2.arguments
             if len(params)!=len(params2):
                 print("ERROR, i parametri non corrispondono")  #Temp
             if params != params2:
                 for i, param in enumerate(params):
-                    if not params2[i] in paramname2namefinal.keys()
+                    if not params2[i] in paramname2namefinal.keys():
                         paramname2namefinal[params2[i]] = param
+    return paramname2namefinal
 
 def actionUnion(domain, action1, action2):
     #Unisce le due azioni in una in modo tale che abbia le precondizioni della prima e gli effetti quelli totali
@@ -624,9 +625,10 @@ def actionUnion(domain, action1, action2):
     name = action1.name+"-"+action2.name
     precondition = action1.precondition
     currParameters = computeParametersInExpr(precondition)
-    parameters = 
+    print(currParameters)
+    print(computeDifferenceInParametersName(action1.effect,action2.precondition))
     
-    newAction = Action(name, parameters, precodition, effect)
+    #newAction = Action(name, parameters, precodition, effect)
 
 def checkPossibleActionUnion(domain, problem):      #Controlla se è possibile unire due azioni
 #Puoi unire due azioni se la precondition di una equivale alla postcondition dell'altra
@@ -660,6 +662,8 @@ def checkPossibleActionUnion(domain, problem):      #Controlla se è possibile u
                 if not valid:
                     continue
                 print(f"Posso unire queste due azioni: {action.name}, {other.name}")
+                print("Starto l'unione")
+                actionUnion(domain, action, other)
     print("Finito")
 
 checkPossibleActionUnion(domain,problem)
