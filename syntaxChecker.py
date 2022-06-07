@@ -125,7 +125,12 @@ class Condition():
         ante = "" if self.positive else "(not "
         post = "" if self.positive else ")"
         return ante + "("  + self.name + " " +" ".join(map(str,self.arguments)) + ")" + post
-        
+    
+    def isOpposite(self, other):
+        if isinstance(other, Condition):
+            return self.name == other.name and self.positive != other.positive
+        return False
+    
     def __eq__(self, other):
         if isinstance(other, Condition):
             return self.name == other.name and self.positive == other.positive
@@ -171,13 +176,25 @@ class Action():
 
 class LogicExpression():
     def __init__(self, name, arguments = []):
-        self.name = name    #and or impy (ecc...)
+        self.name = name    #and or imply (ecc...)
         self.arguments = arguments
     
     def __str__(self):
-        if self.name == "forall":
-            return f"{self.name} (" + " ".join(map(str,self.arguments[0])) + ") (" +" ".join(map(str,self.arguments[1])) + ")"
+        if self.name == "forall" or self.name == "exists":
+            if self.name == "imply":
+                print(self.name)
+                print(str(self.arguments[0]))
+                print(str(self.arguments[1]))
+            return f"({self.name} (" + " ".join(map(str,self.arguments[0])) + ") " +" ".join(map(str,self.arguments[1])) + ")"
+        if self.name == "imply":
+            return f"({self.name} {str(self.arguments[0])} {str(self.arguments[1])})"
         return f"({self.name} " + " ".join(map(str,self.arguments)) + ")"
+    
+    def addCondToArgument(self, argument):
+        if self.name == "and":
+            self.arguments.append(argument)
+        else:
+            return NotImplemented
     
     def __eq__(self, other):
         if isinstance(other, LogicExpression):
@@ -190,7 +207,16 @@ class LogicExpression():
         if isinstance(other, Condition):
             return False
         return NotImplemented
-    
+
+def addCondToExpr(expr, cond):
+    #Funzione che aggiunge una condizione a qualsiasi espressione
+    if isinstance(expr, LogicExpression):
+        expr.addCondToArgument(cond)
+        return expr
+    if isinstance(expr, Condition): #Se l'espressione è una condizione allora la fa diventare un espressione logica con and e con entrambe le condizioni
+        return LogicExpression("and", [expr, cond])
+    return NotImplemented   #Se non è ne una Condition ne una LogicExpression c'è qualcosa che non va, non è stato implementato per questo
+        
 #Function that take an expected expression and the expression and check that they are equal, if not they ryse an SynError.
 def expect(expected, current_token, err=True):
     if type(current_token) == list:
@@ -229,7 +255,7 @@ def checkRequirements(lista):
         if req[1:] not in SUPPORTED_REQUIREMENTS:
             raise SupportException(f"requirement {req[1:]} is not supported.",n_line,req)
             return
-        if req[1:] == "typing":
+        if req[1:] == "typing" or req[1:] == "adl":
             domain.activeTyping();
         domain.addRequirement(req)
 
@@ -320,7 +346,10 @@ def computeLogicExpression(lista,parameters,nameAction,notAllowed = [],currNotAl
     if exp == "and" or exp == "or":
         arguments = computeListLogicExpression(lista[1:],parameters,nameAction,notAllowed,currNotAllowed=[exp]) #Dopo un and non ci può essere un altro and (Stessa cosa con or)
         return LogicExpression(exp, arguments)
-    #elif exp == "imply":   #Imply work in progress
+    elif exp == "imply":   #Imply work in progress
+        arguments1 = analyzeCond(lista[1],parameters,nameAction,notAllowed)
+        arguments2 = analyzeCond(lista[2],parameters,nameAction,notAllowed)
+        return LogicExpression(exp, (arguments1,arguments2))
     elif exp == "forall" or exp == "exists":
         variables = checkVariables(lista[1])
         newparameters = list(map(lambda elem: elem.name,variables))
@@ -397,7 +426,8 @@ def parse_list_aux(tokenstream):
             yield (token,n_line)
 
 #MAIN
-fileName = os.getcwd() + "\\Examples\\domain - Copia.pddl"
+fileName = os.getcwd() + "\\Examples\\pddlEditordomain1.pddl"
+fileName = os.getcwd() + "\\Examples\\domain.pddl"
 domain = Domain()
 try:
     input_file = open(fileName, "r").readlines()
@@ -532,6 +562,7 @@ def checkGoal(lista):
     goal = analyzeCond(lista[1],parameters,"Goal")
     problem.setGoal(goal)
     
+fileNamePr = os.getcwd() + "\\Examples\\pddlEditorproblem1.pddl"
 fileNamePr = os.getcwd() + "\\Examples\\problem.pddl"
 problem = Problem(domain)
 try:
@@ -556,7 +587,6 @@ try:
     i += 1
     checkGoal(result[i])
     print(problem)
-    
 
 except ParseError as err:
     print(err)
@@ -570,7 +600,9 @@ except (SynError,SupportException) as err:
         print(" " * (pos+4) + "^")
     print(f'SyntaxPddlError: {err}')
     
-    
+
+## OPTIMIZING AUXILIARY FUNCTIONS
+
 def condInExp(cond, exp):
     #Data una condizione e un espressione, ritorna True se quella condizione compare nell'espressione
     if isinstance(exp, Condition):
@@ -585,9 +617,15 @@ def allCondinExp(exp):
 #Dato un espressione logica ritorna tutte e solo le condizioni all'interno dell'espressione
     if isinstance(exp, Condition):
         return [exp]
+    if not isinstance(exp, LogicExpression):    #Se non è una LogicExpression e nemmeno un Condition vuol dire che sono parametri da non ritornare
+        return []
     conds = []
     for cond in exp.arguments:
-        conds += allCondinExp(cond)
+        if isinstance(cond, list) or isinstance(cond, tuple):
+            for cond_part in cond:
+                conds += allCondinExp(cond_part)
+        else:
+            conds += allCondinExp(cond)
     return conds
 
 def computeParametersInExpr(logicExpr):
@@ -600,43 +638,71 @@ def computeParametersInExpr(logicExpr):
     return allParam
 
 def computeDifferenceInParametersName(expr1, expr2):
+    #Ritorna un Dizionario che ha come chiavi i nomi dei parametri di expr2 che non sono in expr1
+    #ma che corrispondono a parametri di expr1, questi parametri di expr1 sono gli argomenti di quelle chiavi
+    
+    #Ancora non si tiene traccia di se ho più condizioni dello stesso tipo (tipo room ?from e room ?to)
     conds1 = allCondinExp(expr1)
     conds2 = allCondinExp(expr2)
-    paramname2namefinal = {}
-    for cond in conds1:
-        if cond in conds2:
+    paramname2namefinal = {}    #Inizializza il dizionario
+    for cond in conds1:         #Per ogni condizione in conds1
+        if cond in conds2:      #Se questa condizione sta in conds2 (ci deve stare per forza se si uniscono le azioni)
             index = conds2.index(cond)
-            cond2 = conds2[index]
+            cond2 = conds2[index]       #Prendi la corrispettiava azione in conds2
             params = cond.arguments
             params2 = cond2.arguments
             if len(params)!=len(params2):
-                print("ERROR, i parametri non corrispondono")  #Temp
-            if params != params2:
+                print("ERROR, i parametri non corrispondono!")  #Temp
+            if params != params2:       #Se i paramtri dei due sono diversi allora bisogna inserirli nel dizionario
                 for i, param in enumerate(params):
-                    if params2[i]!=param and not params2[i] in paramname2namefinal.keys():
-                        paramname2namefinal[params2[i]] = param
+                    if params2[i]!=param and not params2[i] in paramname2namefinal.keys():  #Se è diverso e non è già nel dizionario
+                        paramname2namefinal[params2[i]] = param     #Inserisci nel dizionario la coppia param2-param
+        else:
+            print("ERROR, Stai calcolando differenza ma qualcosa non quadra!")  #Temp
     return paramname2namefinal
 
 def changeParameters2Expr(expr, namepre2namepost):
-    #Cambia il nome di tutti i parametri nell'espressione logica se presenti nel dizionario
+    #Cambia il nome di tutti i parametri nell'espressione logica se presenti nel dizionario, ritorna tutti i parametri non presenti
+    output = []
     for cond in allCondinExp(expr):
         for i, par in enumerate(cond.arguments):
             if par in namepre2namepost.keys():
                 cond.arguments[i] = namepre2namepost[par]
+            else:
+                output.append(cond.arguments[i])
+    return output
 
+def effectUnion(effect1, effect2):
+    #Unisce tutte le condizioni di tutti gli effetti.   (Tiene conto solo se sono tutti and)
+    output = effect2                #sicuro contiene tutte gli effetti della seconda azione
+    conds1 = allCondinExp(effect1)
+    conds2 = allCondinExp(effect2)   
+    for cond1 in conds1:        #Per ogni condizione degli effetti della prima azione
+        if cond1 not in conds2: #Se la condizione non è presente in conds2 ...
+            if not True in map(lambda a: a.isOpposite(cond1),conds2):   #... E in conds2 non c'è nemmeno un suo opposto...
+                output = addCondToExpr(output, cond1)                             #Aggiungi anche questa condizione
+    return output
+                
 def actionUnion(domain, action1, action2):
     #Unisce le due azioni in una in modo tale che abbia le precondizioni della prima e gli effetti quelli totali
-    domain.deleteAction(action1)    #Rimuove l'azione dal dominio
+    #TEMP da fare se c'è una precondizione che sta nella seconda ma non negli effetti della prima
+    name = action1.name+"-"+action2.name    #Il nome sarà il nome delle due azioni con il - in mezzo
+    precondition = action1.precondition     #Le precondition sono quelle dell'azione 1
+    currParameters = set(computeParametersInExpr(precondition))  #Sicuramente ci sono tutti i parametri della prima azione
+    parma2toparam1 = computeDifferenceInParametersName(action1.effect,action2.precondition) #Dizionario che serve se i nomi dei parametri delle due azioni non corrispondono
+    #Usa quel dizionario per cambiare i nomi dei parametri
+    pre2paramsmore = set(changeParameters2Expr(action2.precondition, parma2toparam1))
+    post2parammore = set(changeParameters2Expr(action2.effect, parma2toparam1))
+    #Inserisco tutti i parametri e solo una volta
+    parameters = currParameters | pre2paramsmore | post2parammore
+    #Gli effetti sono l'unione degli effetti di 1 e 2
+    effect = effectUnion(action1.effect,action2.effect)
+    #Inserisco la nuova azione nel dominio
+    newAction = Action(name, parameters, precondition, effect)
+    domain.addAction(newAction)
+    #Rimuovo l'azioni vecchie nel dominio
+    domain.deleteAction(action1)
     domain.deleteAction(action2)
-    
-    name = action1.name+"-"+action2.name
-    precondition = action1.precondition
-    currParameters = computeParametersInExpr(precondition)
-    print(currParameters)
-    print(computeDifferenceInParametersName(action1.effect,action2.precondition))
-    changeParameters2Expr(action2.precondition, computeDifferenceInParametersName(action1.effect,action2.precondition))
-    print(action2)
-    #newAction = Action(name, parameters, precodition, effect)
 
 def checkPossibleActionUnion(domain, problem):      #Controlla se è possibile unire due azioni
 #Puoi unire due azioni se la precondition di una equivale alla postcondition dell'altra
@@ -647,22 +713,20 @@ def checkPossibleActionUnion(domain, problem):      #Controlla se è possibile u
             if effect == other.precondition:        #Gli effetti di 'action' sono all'interno delle precondizioni di 'other'
                 if action == other:     #in questo caso precondizioni e effetti di un azione coincidono... si può fare qualcosa
                     continue
-                print(f"Trovata! azione {action.name} con azione {other.name}")
-                #Controlla che effetti non siano un goal
-                
+                #print(f"Trovata! azione {action.name} con azione {other.name}")
+                 
                 #Controlla che queste non siano pre di qualcos'altro
                 valid = True
-                print(allCondinExp(other.precondition))
                 for cond in allCondinExp(other.precondition):  
-                    if condInExp(cond,problem.goal):
-                        print(f"Condizione {cond} trovata nel goal")
+                    if condInExp(cond,problem.goal): #Controlla che effetti non siano un goal
+                        print(f"Condizione {cond} trovata nel goal")            #Temp
                         valid = False
                         break
                     for act in domain.actions:
                         if act == action or act == other:
                             continue
                         if condInExp(cond, act.precondition):
-                            print(f"trovata condizione {cond} in azione {act.name}")
+                            #print(f"trovata condizione {cond} in azione {act.name}")        #Temp
                             valid = False
                             break
                     if not valid:
@@ -676,6 +740,26 @@ def checkPossibleActionUnion(domain, problem):      #Controlla se è possibile u
 
 checkPossibleActionUnion(domain,problem)
 
+print("Controllo se posso eliminare qualcosa")
+def checkPossibleEliminateAction(domain, problem):
+    #Puoi eliminare un azione se gli effetti non compaiono in nessuna
+    #pre-condizione di altre azioni o nei goal
+    for action in domain.actions:
+        effectCond = allCondinExp(action.effect)
+        forElimination = True
+        for other in domain.actions:
+            otherPreCond = allCondinExp(other.precondition)
+            if any([x in effectCond for x in otherPreCond]):    #Se hanno almeno un elemento in comune passa alla prossima azione
+                forElimination = False
+                break
+        #Ora se posso eliminarlo controllo che qualche effetto non sia nei goal
+        if forElimination and not any(x in effectCond for x in allCondinExp(problem.goal)):
+            #Adesso so che action è eliminabile
+            print(f"Posso eliminare l'azione {action.name}")
+            domain.deleteAction(action)
+            print(f"Azione {action.name} eliminata")
+            
+checkPossibleEliminateAction(domain,problem)
 
 def processTypeForWriting(types):
     #ritorna un array con tutti gli object (type) scritti correttamente per una stampa
@@ -714,6 +798,8 @@ def processTypeForWriting(types):
         elements_processed += add_processed
     return rows
 
+
+# REWRITE TO FILE
 
 fileNameDoOud = os.getcwd() + "\\Examples\\domain-processed.pddl"
 def rewrite():

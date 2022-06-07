@@ -1,7 +1,7 @@
 ;COME ; State?
 
 (define (domain gripper-strips)
-(:requirements :strips :typing)
+(:requirements :strips)
    (:predicates (room ?r)
         (ball ?b)
         (gripper ?g)
