@@ -1,4 +1,4 @@
-
+from .condition import Condition
 
 class LogicExpression():
     def __init__(self, name, arguments = []):

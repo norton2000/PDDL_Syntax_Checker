@@ -13,6 +13,4 @@ def main(domainFileName, problemFileName):
     start(domainFileName, problemFileName)
 
 if __name__ == '__main__':
-    print(args['domain'])
-    print(args['problem'])
     main(args['domain'], args['problem'])

@@ -1,31 +1,61 @@
-(define (domain gripper-strips)
-	(:requirements :strips)
+(define (domain movie-strips)
 	(:predicates
-		(room ?r)
-		(ball ?b)
-		(gripper ?g)
-		(at-robby ?r)
-		(at ?b ?r)
-		(free ?g)
-		(carry ?o ?g)
+		(movie-rewound )
+		(counter-at-two-hours )
+		(counter-at-other-than-two-hours )
+		(counter-at-zero )
+		(have-chips )
+		(have-dip )
+		(have-pop )
+		(have-cheese )
+		(have-crackers )
+		(chips ?x)
+		(dip ?x)
+		(pop ?x)
+		(cheese ?x)
+		(crackers ?x)
 	)
 
-	(:action move
-		:parameters (?ehi ?from ?to)
-		:precondition (and (room ?from) (room ?to) (at-robby ?from))
-		:effect (and (at-robby ?to) (not (at-robby ?from)))
+	(:action rewind-movie
+		:parameters ()
+		:precondition (counter-at-other-than-two-hours )
+		:effect (and (movie-rewound ) (not (counter-at-zero )))
 	)
 
-	(:action pick
-		:parameters (?obj ?room ?gripper)
-		:precondition (and (ball ?obj) (room ?room) (gripper ?gripper) (at ?obj ?room) (at-robby ?room) (free ?gripper))
-		:effect (and (carry ?obj ?gripper) (not (at ?obj ?room)) (not (free ?gripper)))
+	(:action reset-counter
+		:parameters ()
+		:precondition (and )
+		:effect (counter-at-zero )
 	)
 
-	(:action drop
-		:parameters (?obj ?room ?gripper)
-		:precondition (and (ball ?obj) (room ?room) (gripper ?gripper) (carry ?obj ?gripper) (at-robby ?room))
-		:effect (and (at ?obj ?room) (free ?gripper) (not (carry ?obj ?gripper)))
+	(:action get-chips
+		:parameters (?x)
+		:precondition (chips ?x)
+		:effect (have-chips )
+	)
+
+	(:action get-dip
+		:parameters (?x)
+		:precondition (dip ?x)
+		:effect (have-dip )
+	)
+
+	(:action get-pop
+		:parameters (?x)
+		:precondition (pop ?x)
+		:effect (have-pop )
+	)
+
+	(:action get-cheese
+		:parameters (?x)
+		:precondition (cheese ?x)
+		:effect (have-cheese )
+	)
+
+	(:action get-crackers
+		:parameters (?x)
+		:precondition (crackers ?x)
+		:effect (have-crackers )
 	)
 
 )

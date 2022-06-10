@@ -113,13 +113,12 @@ def checkPossibleActionUnion(domain, problem):      #Controlla se è possibile u
             if effect == other.precondition:        #Gli effetti di 'action' sono all'interno delle precondizioni di 'other'
                 if action == other:     #in questo caso precondizioni e effetti di un azione coincidono... si può fare qualcosa
                     continue
-                #print(f"Trovata! azione {action.name} con azione {other.name}")
                  
                 #Controlla che queste non siano pre di qualcos'altro
                 valid = True
                 for cond in allCondinExp(other.precondition):  
                     if condInExp(cond,problem.goal): #Controlla che effetti non siano un goal
-                        print(f"Condizione {cond} trovata nel goal")            #Temp
+                        #print(f"Condizione {cond} trovata nel goal")            #Temp
                         valid = False
                         break
                     for act in domain.actions:
@@ -133,38 +132,75 @@ def checkPossibleActionUnion(domain, problem):      #Controlla se è possibile u
                         break
                 if not valid:
                     continue
-                print(f"Posso unire queste due azioni: {action.name}, {other.name}")
+                #print(f"Posso unire queste due azioni: {action.name}, {other.name}")
                 #print("Starto l'unione")
                 #actionUnion(domain, action, other)
                 actions2merge.append((action,other))
-    print("Finito")
     return actions2merge
 #checkPossibleActionUnion(domain,problem)
 
-print("Controllo se posso eliminare qualcosa")
+def OnlyCondInDomain(domain):
+    #Funzione che prende come input un dominio e ritorna una lista contenente tuple
+    #(nomeAzione,CondInPre,CondInEff)
+    result = []
+    for action in domain.actions:
+        condInPre = allCondinExp(action.precondition)
+        condInEff = allCondinExp(action.effect)
+        result.append((action.name, condInPre, condInEff))
+    return result
+
+def allNameInList(lis):
+    return [x.name for x in lis]
+
 def checkPossibleEliminateAction(domain, problem):
     #Puoi eliminare un azione se gli effetti non compaiono in nessuna
-    #pre-condizione di altre azioni o nei goal
+    #pre-condizione di altre azioni o nei goal, OPPURE se almeno una precondizione
+    #non è presente in nessun effetto di altre azioni oppure nell'init
     actions2Eliminate = []        # Output, contains the actions that can be deleted
-    for action in domain.actions:
-        effectCond = allCondinExp(action.effect)
-        forElimination = True
-        for other in domain.actions:
-            otherPreCond = allCondinExp(other.precondition)
-            if any([x in effectCond for x in otherPreCond]):    #Se hanno almeno un elemento in comune passa alla prossima azione
-                forElimination = False
-                break
-        #Ora se posso eliminarlo controllo che qualche effetto non sia nei goal
-        if forElimination and not any(x in effectCond for x in allCondinExp(problem.goal)):
+    actionsCond = OnlyCondInDomain(domain)
+    
+    for (actionName,condInPre,condInEff) in actionsCond:
+        variable = [False] * len(condInPre)
+        forElimination1, forElimination2 = True, True
+        for (otherName,otherCondInPre,otherCondInEff) in actionsCond:
+            if otherName == actionName: #Non analizzare con la stessa azione
+                continue
+            #Controlla se gli effetti azioneranno qualche altra precondizione
+            if forElimination1 and any([x in condInEff for x in otherCondInPre]):    #Se hanno almeno un elemento in comune passa alla prossima azione
+                forElimination1 = False
+            #Controlla se le precondizioni possono essere azionate da qualche effetto
+            if forElimination2:
+                #Controlla finché non vedi che tutte le precondizioni copaiono negli effetti di qualcosa
+                curr = [x in otherCondInEff for x in condInPre]
+                variable = [x or y for (x, y) in zip(variable, curr)]    
+                if all(variable):
+                    forElimination2 = False
+        
+        #Ora se posso eliminarlo controllo:
+        #  -Che qualche effetto non sia nei goal (per 1)
+        #  -Che qualche precondizione non sia nell'init (per 2)
+        if forElimination1 and not any(x in condInEff for x in allCondinExp(problem.goal)):
             #Adesso so che action è eliminabile
-            print(f"Posso eliminare l'azione {action.name}")
-            #domain.deleteAction(action)
+            print(f"Action {actionName} può essere eliminata per motivo 1")
+            action = domain.findAction(actionName)
             actions2Eliminate.append(action)
-            #print(f"Azione {action.name} eliminata")
+            continue
+        if forElimination2:
+            initNames = allNameInList(problem.init)
+            for i in range(len(variable)):
+                if not variable[i]:     #Se questa condizione non è presente in nessun effetto, cerca tra init
+                    if condInPre[i].positive ^ (condInPre[i].name in initNames):  #xor conditions...
+                    #... Se è positiva allora si può eliminare solo se non è nell'init
+                    #Se è negativa, posso eliminare solo se comprare nell'init (Si traduce con uno xor)
+                        #Adesso so che action è eliminabile
+                        print(f"Action {actionName} può essere eliminata per motivo 2, cond {condInPre[i]}")
+                        action = domain.findAction(actionName)
+                        actions2Eliminate.append(action)
+                        break
     return actions2Eliminate
     
     
-    
+
 def processTypeForWriting(types):
     #ritorna un array con tutti gli object (type) scritti correttamente per una stampa
     noneParent = []
@@ -204,7 +240,6 @@ def processTypeForWriting(types):
 
 
 # REWRITE TO FILE
-#fileNameDoOud = os.getcwd() + "\\Examples\\domain-processed.pddl"
 def rewrite(domain,fileNameDoOud):
     with open(fileNameDoOud, "w") as f:
         #Write domain and domain name

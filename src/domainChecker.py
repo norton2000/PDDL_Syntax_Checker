@@ -146,9 +146,9 @@ def computeLogicExpression(lista,parameters,nameAction,domain,notAllowed = [],cu
             commonParameter = set(newparameters).intersection(parameters).pop()
             raise SynError(f"You shouldn't use the same variable in a forall or exists clause as you have in the parameters. Check {commonParameter}", n_line, commonParameter)
         if lista[2][0][0] == "when":
-            arguments = computeListLogicExpression(lista[2][1:],parameters+newparameters,nameAction,notAllowed)
+            arguments = computeListLogicExpression(lista[2][1:],parameters+newparameters,nameAction,domain,notAllowed)
             return LogicExpression(exp, (variables,[LogicExpression("when",arguments)]))
-        arguments = computeListLogicExpression(lista[2:],parameters+newparameters,nameAction,notAllowed)
+        arguments = computeListLogicExpression(lista[2:],parameters+newparameters,nameAction,domain,notAllowed)
         return LogicExpression(exp, (variables,arguments))
     else:
         return analyzeSingleCond(lista,parameters,nameAction, domain)
@@ -164,7 +164,7 @@ def analyzeSingleCond(elem,parameters,nameAction, domain):
     if not positive:
         elem = elem[1]
     name = elem[0][0]
-    analyzePredInCond(name, elem[1:], elem[0][1], parameters,nameAction, domain)
+    analyzePredInCond(name, elem[1:], elem[0][1], parameters, nameAction, domain)
     arguments = list(map(lambda e: e[0],elem[1:]))
     return Condition(name, arguments, positive)
 

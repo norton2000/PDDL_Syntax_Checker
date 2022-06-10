@@ -28,6 +28,9 @@ class Domain():
     def findPredicate(self, name):
         return next((x for x in self.predicates if x.name == name), None)
     
+    def findAction(self,name):
+        return next((x for x in self.actions if x.name == name), None)
+    
     def activeTyping(self):
         self.typing = True
         self.objects = []
