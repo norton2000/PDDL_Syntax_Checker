@@ -1,4 +1,4 @@
-
+from .utility import *
 
 #Function that take the input and return a list of a tuple of all the word with the correspective line.
 def tokenize(input):

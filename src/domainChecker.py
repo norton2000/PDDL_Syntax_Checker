@@ -2,16 +2,14 @@ from .pddl import *
 from .utility import *
 from .tokenizer import *
 
-SUPPORTED_REQUIREMENTS = ["typing", "strips", "adl", "negative-preconditions"]
+import re
 
-def addCondToExpr(expr, cond):
-    #Funzione che aggiunge una condizione a qualsiasi espressione
-    if isinstance(expr, LogicExpression):
-        expr.addCondToArgument(cond)
-        return expr
-    if isinstance(expr, Condition): #Se l'espressione è una condizione allora la fa diventare un espressione logica con and e con entrambe le condizioni
-        return LogicExpression("and", [expr, cond])
-    return NotImplemented   #Se non è ne una Condition ne una LogicExpression c'è qualcosa che non va, non è stato implementato per questo
+SUPPORTED_REQUIREMENTS = ["typing", "strips", "adl", "negative-preconditions", "disjunctive-preconditions",
+                          "existential-preconditions", "universal-preconditions", "quantified-preconditions",
+                          "conditional-effects", "equality"]
+                          
+SUPPORTED_LOGIC = ["and", "or", "imply", "forall", "exists", "when", "not"]
+
         
 #Function that take an expected expression and the expression and check that they are equal, if not they ryse an SynError.
 def expect(expected, current_token, err=True):
@@ -23,7 +21,13 @@ def expect(expected, current_token, err=True):
             raise SynError(f'Expected "{expected}" but we have "{word}".', n_line, word)
         return False
     return True
-    
+
+def computeElemInList(elem):
+    #Ritorna il primo elemento base (name, n_line) di una lista
+    if type(elem) == list:
+        return computeElemInList(elem[0])
+    return elem
+ 
 def expectStarting(expected, current_token):
     (word, n_line) = current_token
     if not word[:len(expected)] == expected:
@@ -34,7 +38,7 @@ def checkName(lista, subject="domain"):
     expect(subject,lista[0])
     if len(lista) > 2:
         (word, n_line) = lista[2]
-        raise SynError(f'The {subject} name must consist of only one word, find "{word}".', n_line, word)
+        raise SynError(f'The {subject} name can only have one word, find "{word}".', n_line, word)
     return lista[1][0]
     
 def checkRequirements(lista, domain):
@@ -50,8 +54,12 @@ def checkRequirements(lista, domain):
 
 def addObjects(objsName, domain, parent=None):
     for objName in objsName:
-        obj = Object(objName,parent)
-        domain.addObject(obj)
+        objExist = domain.getObject(objName)
+        if objExist:
+            objExist.parent = parent
+        else:
+            obj = Object(objName,parent)
+            domain.addObject(obj)
 
 def checkTypesObjects(lista, domain):
     expect(":types",lista[0])
@@ -69,7 +77,8 @@ def checkTypesObjects(lista, domain):
             addObjects(waitingTypeFather,domain, parObj)    #Tutta la lista di oggetti che era in attesa di genitore ora posso crearli
             waitingTypeFather = []
         else:       #Nuovo oggetto
-            if name in waitingTypeFather or domain.getObject(name):     #Controllo se ho già un oggetto con questo nome
+            if name in waitingTypeFather or (domain.getObject(name) and domain.getObject(name).parent != None):     #Controllo se ho già un oggetto con questo nome
+                #Se il parent è None vuol dire che vuoi definire adesso il suo parent quindi non lanciare errore
                 raise SynError(f'type "{name}" already exist.', n_line, name)
             waitingTypeFather.append(name)  #Inserisco nella lista degli oggetti da creare
         i+=1
@@ -119,7 +128,10 @@ def checkSinglePredicate(pred, domain):
 def analyzePredInCond(name, params, n_line, parameters, nameAction, domain):
     predicate = domain.findPredicate(name)
     if not predicate:
-        raise SynError(f'The predicate "{name}" does not exist in action {nameAction}.', n_line, name)
+        #if name i
+        if name != "=":
+            raise SynError(f'The predicate "{name}" does not exist in action {nameAction}.', n_line, name)
+        predicate = Predicate("=",['a','b'])
     if not predicate.lenArguments()==len(params):
         raise SynError(f'Predicate "{name}" must have {predicate.lenArguments()} arguments, find {len(params)} arguments in action {nameAction}.', n_line, name)
     for param in params:
@@ -127,6 +139,11 @@ def analyzePredInCond(name, params, n_line, parameters, nameAction, domain):
             raise SynError(f'Parameters "{param[0]}" does not exist in action {nameAction}.', param[1], param[0])
 
 def computeLogicExpression(lista,parameters,nameAction,domain,notAllowed = [],currNotAllowed = []):
+    if type(lista[0]) == str:
+        raise SynError(f'Need a parentesis before {lista[0]} in action {nameAction}',lista[1], lista[0])
+    if type(lista[0]) == list:
+       (name,n_line) = computeElemInList(lista[0])
+       raise SynError(f'Too many parentheses enclosing {name} in action {nameAction}',n_line, name)
     (exp,n_line) = lista[0]
     
     if exp in notAllowed or exp in currNotAllowed:
@@ -135,7 +152,7 @@ def computeLogicExpression(lista,parameters,nameAction,domain,notAllowed = [],cu
     if exp == "and" or exp == "or":
         arguments = computeListLogicExpression(lista[1:],parameters,nameAction,domain,notAllowed,currNotAllowed=[exp]) #Dopo un and non ci può essere un altro and (Stessa cosa con or)
         return LogicExpression(exp, arguments)
-    elif exp == "imply":   #Imply work in progress
+    elif exp == "imply" or exp == "when":   #Imply work in progress
         arguments1 = analyzeCond(lista[1],parameters,nameAction,domain,notAllowed)
         arguments2 = analyzeCond(lista[2],parameters,nameAction,domain,notAllowed)
         return LogicExpression(exp, (arguments1,arguments2))
@@ -150,6 +167,10 @@ def computeLogicExpression(lista,parameters,nameAction,domain,notAllowed = [],cu
             return LogicExpression(exp, (variables,[LogicExpression("when",arguments)]))
         arguments = computeListLogicExpression(lista[2:],parameters+newparameters,nameAction,domain,notAllowed)
         return LogicExpression(exp, (variables,arguments))
+    elif exp == "not" and lista[1][0][0] == "exists":           #Per il (not (exists ...))
+        arguments = computeListLogicExpression(lista[1:],parameters,nameAction,domain,notAllowed)
+        return LogicExpression(exp, arguments)
+        
     else:
         return analyzeSingleCond(lista,parameters,nameAction, domain)
 
@@ -159,9 +180,12 @@ def computeListLogicExpression(lista,parameters,nameAction,domain,notAllowed = [
         result.append(computeLogicExpression(elem,parameters,nameAction,domain,notAllowed,currNotAllowed))
     return result
     
-def analyzeSingleCond(elem,parameters,nameAction, domain):
+def analyzeSingleCond(elem, parameters, nameAction, domain):
+    
     positive = elem[0][0] != "not"      #False if the sentence is a negation
     if not positive:
+        if type(elem[1]) != list or len(elem) > 2:
+            raise SynError(f' Error in action {nameAction}. After "not" comes a round bracket.', elem[0][1], "not")
         elem = elem[1]
     name = elem[0][0]
     analyzePredInCond(name, elem[1:], elem[0][1], parameters, nameAction, domain)
@@ -209,23 +233,27 @@ def domainChecker(domainFileName):
         if domain.typing and expect(":types",result[i],False):
             checkTypesObjects(result[i], domain)
             i += 1
+        if(expect(":constants",result[i],False)):
+            raise SupportException("constants are not supported.",result[i][0][1],result[i][0][0])
         checkPredicates(result[i], domain)  #Check Predicates
         i += 1
         while i<len(result):
             checkAction(result[i],domain)
             i += 1
+        return domain
 
     except ParseError as err:
+        print(f'Error parsing file "{domainFileName}"')
         print(err)
     except (SynError,SupportException) as err:
         line = err.line
         word = err.word
+        line_file = re.sub(r'^[\t\s]*|\t', '',input_file[line][:-1])
+        #word = re.sub(r'\?','',word)
         print(f'  File "{domainFileName}", line {line+1}')
-        print(f"    {input_file[line][:-1]}")
-        pos = input_file[line].find(word)
+        print(f"    {line_file}")
+        pos = findIndexInText(word,line_file)
         if pos != -1:
-            print(" " * (pos+4) + "^")
+            print(" " * pos + "^")
         print(f'SyntaxPddlError: {err}')
-    
-    return domain
-    
+

@@ -2,6 +2,15 @@ from .pddl import *
 
 ## OPTIMIZING AUXILIARY FUNCTIONS
 
+def addCondToExpr(expr, cond):
+    #Funzione che aggiunge una condizione a qualsiasi espressione
+    if isinstance(expr, LogicExpression):
+        expr.addCondToArgument(cond)
+        return expr
+    if isinstance(expr, Condition): #Se l'espressione è una condizione allora la fa diventare un espressione logica con and e con entrambe le condizioni
+        return LogicExpression("and", [expr, cond])
+    return NotImplemented   #Se non è ne una Condition ne una LogicExpression c'è qualcosa che non va, non è stato implementato per questo
+
 def condInExp(cond, exp):
     #Data una condizione e un espressione, ritorna True se quella condizione compare nell'espressione
     if isinstance(exp, Condition):
@@ -51,13 +60,13 @@ def computeDifferenceInParametersName(expr1, expr2):
             params = cond.arguments
             params2 = cond2.arguments
             if len(params)!=len(params2):
-                print("ERROR, i parametri non corrispondono!")  #Temp
+                print(f"Error in merging actions: The parameters of condition {cond} do not correspond")
             if params != params2:       #Se i paramtri dei due sono diversi allora bisogna inserirli nel dizionario
                 for i, param in enumerate(params):
                     if params2[i]!=param and not params2[i] in paramname2namefinal.keys():  #Se è diverso e non è già nel dizionario
                         paramname2namefinal[params2[i]] = param     #Inserisci nel dizionario la coppia param2-param
         else:
-            print("ERROR, Stai calcolando differenza ma qualcosa non quadra!")  #Temp
+            print("Error in merging actions")
     return paramname2namefinal
 
 def changeParameters2Expr(expr, namepre2namepost):
@@ -84,7 +93,6 @@ def effectUnion(effect1, effect2):
                 
 def actionUnion(domain, action1, action2):
     #Unisce le due azioni in una in modo tale che abbia le precondizioni della prima e gli effetti quelli totali
-    #TEMP da fare se c'è una precondizione che sta nella seconda ma non negli effetti della prima
     name = action1.name+"-"+action2.name    #Il nome sarà il nome delle due azioni con il - in mezzo
     precondition = action1.precondition     #Le precondition sono quelle dell'azione 1
     currParameters = set(computeParametersInExpr(precondition))  #Sicuramente ci sono tutti i parametri della prima azione
@@ -118,14 +126,12 @@ def checkPossibleActionUnion(domain, problem):      #Controlla se è possibile u
                 valid = True
                 for cond in allCondinExp(other.precondition):  
                     if condInExp(cond,problem.goal): #Controlla che effetti non siano un goal
-                        #print(f"Condizione {cond} trovata nel goal")            #Temp
                         valid = False
                         break
                     for act in domain.actions:
                         if act == action or act == other:
                             continue
                         if condInExp(cond, act.precondition):
-                            #print(f"trovata condizione {cond} in azione {act.name}")        #Temp
                             valid = False
                             break
                     if not valid:
@@ -154,7 +160,7 @@ def allNameInList(lis):
 
 def checkPossibleEliminateAction(domain, problem):
     #Puoi eliminare un azione se gli effetti non compaiono in nessuna
-    #pre-condizione di altre azioni o nei goal, OPPURE se almeno una precondizione
+    #pre-condizione di altre azioni o nei goal (1), OPPURE se almeno una precondizione
     #non è presente in nessun effetto di altre azioni oppure nell'init
     actions2Eliminate = []        # Output, contains the actions that can be deleted
     actionsCond = OnlyCondInDomain(domain)
@@ -181,7 +187,6 @@ def checkPossibleEliminateAction(domain, problem):
         #  -Che qualche precondizione non sia nell'init (per 2)
         if forElimination1 and not any(x in condInEff for x in allCondinExp(problem.goal)):
             #Adesso so che action è eliminabile
-            print(f"Action {actionName} può essere eliminata per motivo 1")
             action = domain.findAction(actionName)
             actions2Eliminate.append(action)
             continue
@@ -189,11 +194,9 @@ def checkPossibleEliminateAction(domain, problem):
             initNames = allNameInList(problem.init)
             for i in range(len(variable)):
                 if not variable[i]:     #Se questa condizione non è presente in nessun effetto, cerca tra init
-                    if condInPre[i].positive ^ (condInPre[i].name in initNames):  #xor conditions...
-                    #... Se è positiva allora si può eliminare solo se non è nell'init
-                    #Se è negativa, posso eliminare solo se comprare nell'init (Si traduce con uno xor)
+                    if condInPre[i].positive and not (condInPre[i].name in initNames): 
+                    #... Si può eliminare solo se è positiva e non è nell'init
                         #Adesso so che action è eliminabile
-                        print(f"Action {actionName} può essere eliminata per motivo 2, cond {condInPre[i]}")
                         action = domain.findAction(actionName)
                         actions2Eliminate.append(action)
                         break
@@ -217,13 +220,13 @@ def processTypeForWriting(types):
         else:
             parent2child[ob.parent.name] = [ob.name]
     #Ora inizia a scrivere, prima quelli che non hanno parenti
-    for par in noneParent:
-        try:
+    for par in noneParent:          
+        if par in parent2child:     #Se ha dei figli allora scrivi figlio - padre
             elements = parent2child.pop(par)
             elements_processed += elements
             rows.append(" ".join(elements) + f" - {par}")
-        except:
-            print("C'è qualche problema, un NoneType!")          #Temp
+        else:                       #Se non ha figli allora scrivilo senza -
+            rows.append(par)
     #Ora scrivi tutti, scrivendo prima quelli i cui parenti sono già stati scritti
     while len(parent2child)> 0:
         add_processed = []
@@ -233,7 +236,6 @@ def processTypeForWriting(types):
                 add_processed += elements
                 rows.append(" ".join(map(str,elements)) + f" - {elem}")
         if len(add_processed) == 0:     #Se hai fatto un iterazione senza aggiungere nulla c'è qualche problema
-            print("Problema, Non sono riuscito a mettere tutti") #Temp
             break
         elements_processed += add_processed
     return rows

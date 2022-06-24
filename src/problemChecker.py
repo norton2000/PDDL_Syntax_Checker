@@ -3,6 +3,8 @@ from .utility import *
 from .tokenizer import *
 from .domainChecker import checkName, expect, checkVariables, analyzeCond
 
+import re
+
 def checkProblemDomain(lista, domain):
     expect(":domain",lista[0])
     if len(lista) > 2:
@@ -36,11 +38,13 @@ def checkSingleProblemCondition(cond,domain,problem):
     for typeRequest in pred.objectArguments():
         obj = problem.findObject(cond[i][0])
         if not obj:
-            raise SynError(f'The object {cond[i][0]} Does not exist in the current problem.', n_line, cond[i][0])
+            raise SynError(f'The object "{cond[i][0]}" Does not exist in the current problem.', n_line, cond[i][0])
         if(domain.typing):
             typeReal = obj.obj
             if not checkTypingBetweenObject(typeRequest,typeReal):
-                raise SynError(f'The object {cond[i][0]} is of the type {typeReal.name}, whereas the predicate {word} wants as its {i} object the type {objRequest.name}.', n_line, cond[i][0])
+                nameReal = typeReal.name if typeReal else None
+                requestName = typeRequest.name if typeRequest else None
+                raise SynError(f'The object "{cond[i][0]}" is of the type "{nameReal}", whereas the predicate "{word}" wants as its {i} argument the type "{requestName}".', n_line, cond[i][0])
         objs.append(obj)
         i+=1
     #Uso il nome per creare un nuovo predicato perché quello che ho nel dominio non ha collegato gli oggetti giusti
@@ -84,17 +88,19 @@ def problemChecker(problemFileName, domain):
         checkInit(result[i],domain,problem)
         i += 1
         checkGoal(result[i],domain,problem)
+        return problem
 
     except ParseError as err:
         print(err)
     except (SynError,SupportException) as err:
         line = err.line
         word = err.word
+        line_file = re.sub(r'^[\t\s]*|\t', '',input_filePr[line][:-1])
         print(f'  File "{problemFileName}", line {line+1}')
-        print(f"    {input_filePr[line][:-1]}")
-        pos = input_filePr[line].find(word)
+        print(f"    {line_file}")
+        pos = line_file.find(word)
         if pos != -1:
             print(" " * (pos+4) + "^")
         print(f'SyntaxPddlError: {err}')
     
-    return problem
+    

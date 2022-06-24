@@ -20,7 +20,7 @@ class Domain():
         
     def addRequirement(self, req):
         self.requirements.append(req)
-    
+
     def checkPredicate(self, name, length):
         predicate = findPredicate(name)
         return predicate and predicate.lenArguments()==length
@@ -37,7 +37,10 @@ class Domain():
     
     def addObject(self, obj):
         self.objects.append(obj)
-        
+    
+    def deleteObject(self, obj):
+        self.objects.remove(obj)
+    
     def getObject(self, name):  #funzione che ritorna l'oggetto presente nel dominio ricercato tramite il nome. Ritorna None se il nome dell'oggetto non esiste nel dominio.
         for obj in self.objects:
             if obj.name == name:
