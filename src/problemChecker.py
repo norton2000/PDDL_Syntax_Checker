@@ -98,9 +98,9 @@ def problemChecker(problemFileName, domain):
         line_file = re.sub(r'^[\t\s]*|\t', '',input_filePr[line][:-1])
         print(f'  File "{problemFileName}", line {line+1}')
         print(f"    {line_file}")
-        pos = line_file.find(word)
+        pos = findIndexInText(word,line_file)
         if pos != -1:
-            print(" " * (pos+4) + "^")
+            print(" " * pos + "^")
         print(f'SyntaxPddlError: {err}')
     
     

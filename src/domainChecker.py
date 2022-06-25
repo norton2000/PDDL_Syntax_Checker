@@ -249,7 +249,6 @@ def domainChecker(domainFileName):
         line = err.line
         word = err.word
         line_file = re.sub(r'^[\t\s]*|\t', '',input_file[line][:-1])
-        #word = re.sub(r'\?','',word)
         print(f'  File "{domainFileName}", line {line+1}')
         print(f"    {line_file}")
         pos = findIndexInText(word,line_file)

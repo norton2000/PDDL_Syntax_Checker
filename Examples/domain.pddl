@@ -1,34 +1,32 @@
 (define (domain gripper-strips)
-   (:predicates (room ?r)
-		(ball ?b)
-		(gripper ?g)
-		(at-robby ?r)
-		(at ?b ?r)
-		(free ?g)
-		(carry ?o ?g))
+   (:requirements :strips :typing)
+   (:types ball gripper room)
+   (:predicates
+        (at-robby ?r - room)
+        (at ?b - ball ?r - room)
+        (free ?g - gripper)
+        (carry ?o - ball ?g - gripper)
+		(turned-off ?g - gripper))
+
 
    (:action move
-       :parameters  (?from ?to)
-       :precondition (and  (room ?from) (room ?to) (at-robby ?from))
+       :parameters  (?from ?to - room)
+       :precondition (and (at-robby ?from))
        :effect (and  (at-robby ?to)
-		     (not (at-robby ?from))))
+             (not (at-robby ?from))))	
 
-
-
+	
    (:action pick
-       :parameters (?obj ?room ?gripper)
-       :precondition  (and  (ball ?obj) (room ?room) (gripper ?gripper)
-			    (at ?obj ?room) (at-robby ?room) (free ?gripper))
+       :parameters (?obj - ball ?room - room ?gripper - gripper)
+       :precondition  (and (at ?obj ?room) (at-robby ?room) (free ?gripper))
        :effect (and (carry ?obj ?gripper)
 		    (not (at ?obj ?room)) 
 		    (not (free ?gripper))))
 
 
    (:action drop
-       :parameters  (?obj  ?room ?gripper)
-       :precondition  (and  (ball ?obj) (room ?room) (gripper ?gripper)
-			    (carry ?obj ?gripper) (at-robby ?room))
+       :parameters  (?obj - ball ?room - room ?gripper - gripper)
+       :precondition  (and (carry ?obj ?gripper) (at-robby ?room))
        :effect (and (at ?obj ?room)
 		    (free ?gripper)
 		    (not (carry ?obj ?gripper)))))
-
