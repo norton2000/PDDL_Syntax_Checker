@@ -214,7 +214,8 @@ def checkAction(action,domain):
 def domainChecker(domainFileName):
     domain = Domain()
     try:
-        input_file = open(domainFileName, "r").readlines()
+        #input_file = open(domainFileName, "r").readlines()
+        input_file = domainFileName
         tokens = tokenize(input_file)
         next_token = next(tokens)
         if next_token[0] != "(":
