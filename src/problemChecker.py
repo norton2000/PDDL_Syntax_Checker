@@ -6,7 +6,7 @@ from .domainChecker import checkName, expect, checkVariables, analyzeCond
 import re
 
 def checkProblemDomain(lista, domain):
-    expect(":domain",lista[0])
+    expect(":domain",lista[0], domain)
     if len(lista) > 2:
         (word, n_line) = lista[2]
         raise SynError(f'The domain name must consist of only one word, find "{word}".', n_line, word)
@@ -16,7 +16,7 @@ def checkProblemDomain(lista, domain):
     #Se si deve assegnare il dominio al problema qui, ora lo faccio all'inizio quando creo oggetto problem
 
 def checkObjects(lista,domain,problem):
-    expect(":objects",lista[0])
+    expect(":objects",lista[0], domain)
     variables = checkVariables(lista[1:],domain,False) #False perché non sono variabili ma oggetti quindi non iniziano con ?
     #parameters = list(map(lambda elem: elem.name,variables))
     problem.setObjects(variables)
@@ -51,13 +51,13 @@ def checkSingleProblemCondition(cond,domain,problem):
     return Predicate(word,objs)
     
 def checkInit(lista,domain,problem):
-    expect(":init",lista[0])
+    expect(":init",lista[0], domain)
     for elem in lista[1:]:
         initCond = checkSingleProblemCondition(elem,domain,problem)
         problem.addCondition(initCond)
     
 def checkGoal(lista,domain,problem):
-    expect(":goal",lista[0])
+    expect(":goal",lista[0], domain)
     parameters = list(map(lambda elem: elem.name,problem.objects))
     goal = analyzeCond(lista[1],parameters,"Goal",domain)
     problem.setGoal(goal)
@@ -77,9 +77,9 @@ def problemChecker(problemFileName, domain):
         for tok in tokens:  # Check that generator is exhausted.
             raise ParseError("Unexpected token: %s." % tok)
         i=0
-        expect("define",result[i])  #define problem
+        expect("define",result[i], domain)  #define problem
         i += 1
-        problem.name = checkName(result[i],"problem")  #Problem name
+        problem.name = checkName(result[i], domain,"problem")  #Problem name
         i += 1
         checkProblemDomain(result[i], domain)
         i += 1

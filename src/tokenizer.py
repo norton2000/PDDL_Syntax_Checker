@@ -21,6 +21,7 @@ def parse_list_aux(tokenstream):
         try:
             (token, n_line) = next(tokenstream)
         except StopIteration:
+            return
             raise ParseError("Missing ')', check all parenthesis")
         if token == ")":
             return

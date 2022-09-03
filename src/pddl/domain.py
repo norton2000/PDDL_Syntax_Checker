@@ -8,6 +8,7 @@ class Domain():
         self.requirements = []
         self.typing = False
         self.objects = None
+        self.errors = []
     
     def addPredicate(self, predicate):
         self.predicates.append(predicate)
@@ -46,6 +47,9 @@ class Domain():
             if obj.name == name:
                 return obj
         return None
-        
+    
+    def addErrors(self, err):
+        self.errors.append(err)
+    
     def __str__(self):
         return f"Domain: {self.name}\n\nPredicates: "+"; ".join(map(str,self.predicates))+"\n\nActions:\n"+"\n\n".join(map(str,self.actions))

@@ -52,7 +52,8 @@ def requestDoPrOp(text):
     print("too many attempts, quit program...")
     return 9
 
-def start(domainFileName, problemFileName):
+def start(domainFileName, problemFileName, opt = False):
+    #Ancora da usare True o False
     try:
         domainFileName, problemFileName = checkPathFile(domainFileName, problemFileName)
     except FileNotFoundError as e:
@@ -120,7 +121,7 @@ def start(domainFileName, problemFileName):
                             print(f"action {a.name} deleted")
                 
                 if changed:
-                    fileNameDoOud = os.getcwd() + "\\out\\domain-processed.pddl"
+                    fileNameDoOud = os.path.join(os.getcwd(),"out","domain-processed.pddl")
                     rewrite(domain,fileNameDoOud)
                     print(f"The new modified domain is {fileNameDoOud}")
                 else:
