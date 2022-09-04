@@ -256,18 +256,6 @@ def checkAction(action,domain):
     domain.addAction(action)
 
 
-
-def printSynError(err, domainFileName, input_file):
-        line = err.line
-        word = err.word
-        line_file = re.sub(r'^[\t\s]*|\t', '',input_file[line][:-1])
-        print(f'  File "{domainFileName}", line {line+1}')
-        print(f"    {line_file}")
-        pos = findIndexInText(word,line_file)
-        if pos != -1:
-            print(" " * pos + "^")
-        print(f'SyntaxPddlError: {err}')
-
 def domainChecker(domainFileName):
     domain = Domain()
     try:
@@ -300,7 +288,7 @@ def domainChecker(domainFileName):
          
         if domain.errors:
             if len(domain.errors)>1:
-                print(f"\n FOUND {len(domain.errors)} ERRORS:\n")
+                print(f"\n FOUND {len(domain.errors)} ERRORS IN THE DOMAIN:\n")
             for err in domain.errors:
                 printSynError(err, domainFileName, input_file)
                 print()
@@ -313,7 +301,7 @@ def domainChecker(domainFileName):
     
     except (SynError,SupportException) as error:
         if domain and domain.errors:
-            print(f"\n FOUND {len(domain.errors)+1} ERRORS:\n")
+            print(f"\n FOUND {len(domain.errors)+1} ERRORS IN THE DOMAIN:\n")
             for err in domain.errors:
                 printSynError(err, domainFileName, input_file)
                 print()

@@ -22,6 +22,16 @@ class SupportException(Exception):
     def __str__(self):
         return self.text
 
+def printSynError(err, domainFileName, input_file):
+        line = err.line
+        word = err.word
+        line_file = re.sub(r'^[\t\s]*|\t', '',input_file[line][:-1])
+        print(f'  File "{domainFileName}", line {line+1}')
+        print(f"    {line_file}")
+        pos = findIndexInText(word,line_file)
+        if pos != -1:
+            print(" " * pos + "^")
+        print(f'SyntaxPddlError: {err}')
 
 import re
 def findIndexInText(word,line_file):

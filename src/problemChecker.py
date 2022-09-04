@@ -8,11 +8,11 @@ import re
 def checkProblemDomain(lista, domain):
     expect(":domain",lista[0], domain)
     if len(lista) > 2:
-        (word, n_line) = lista[2]
-        raise SynError(f'The domain name must consist of only one word, find "{word}".', n_line, word)
+        (word, n_line) = extract(lista[2])
+        domain.addErrors(SynError(f'The domain name must consist of only one word, find "{word}".', n_line, word))
     if lista[1][0] != domain.name:
-        (word, n_line) = lista[1]
-        raise SynError(f'The domain "{word}" is unknown. Maybe you meant "{domain.name}"', n_line, word)
+        (word, n_line) = extract(lista[1])
+        domain.addErrors(SynError(f'The domain "{word}" is unknown. Maybe you meant "{domain.name}"', n_line, word))
     #Se si deve assegnare il dominio al problema qui, ora lo faccio all'inizio quando creo oggetto problem
 
 def checkObjects(lista,domain,problem):
@@ -27,24 +27,29 @@ def checkTypingBetweenObject(parent, child):    #Dati tue type controlla se chil
     return child==parent or checkTypingBetweenObject(parent, child.parent)  #Passo ricorsivo
 
 def checkSingleProblemCondition(cond,domain,problem):
-    (word, n_line) = cond[0]
+    (word, n_line) = extract(cond[0])
     pred = domain.findPredicate(word)   #findPredicate ritorna Null se non ha trovato il predicato con quel nome
     if not pred:                        #Se pred è Null allora lancia Synerror
-        raise SynError(f'The predicate "{word}" Does not exist in the current domain "{domain.name}"', n_line, word)
+        domain.addErrors(SynError(f'The predicate "{word}" Does not exist in the current domain "{domain.name}"', n_line, word))
+        return None     #Aggiungi l'errore e passa avanti
     if pred.lenArguments() != len(cond[1:]):
-        raise SynError(f'The predicate "{word}" wants {pred.lenArguments()} arguments. {len(cond[1:])} were found.', n_line, word)
+        (word1, n_line1) = extract(cond[1:][pred.lenArguments()])  #Prendi la parola che sta l'ultimo argomento atteso
+        domain.addErrors(SynError(f'The predicate "{word}" wants {pred.lenArguments()} arguments. {len(cond[1:])} were found.', n_line, word))
+        return None
     i = 1
     objs = []
     for typeRequest in pred.objectArguments():
         obj = problem.findObject(cond[i][0])
         if not obj:
-            raise SynError(f'The object "{cond[i][0]}" Does not exist in the current problem.', n_line, cond[i][0])
+            domain.addErrors(SynError(f'The object "{cond[i][0]}" Does not exist in the current problem.', n_line, cond[i][0]))
+            return None
         if(domain.typing):
             typeReal = obj.obj
             if not checkTypingBetweenObject(typeRequest,typeReal):
                 nameReal = typeReal.name if typeReal else None
                 requestName = typeRequest.name if typeRequest else None
-                raise SynError(f'The object "{cond[i][0]}" is of the type "{nameReal}", whereas the predicate "{word}" wants as its {i} argument the type "{requestName}".', n_line, cond[i][0])
+                domain.addErrors(SynError(f'The object "{cond[i][0]}" is of the type "{nameReal}", whereas the predicate "{word}" wants as its {i} argument the type "{requestName}".', n_line, cond[i][0]))
+                return None
         objs.append(obj)
         i+=1
     #Uso il nome per creare un nuovo predicato perché quello che ho nel dominio non ha collegato gli oggetti giusti
@@ -54,7 +59,8 @@ def checkInit(lista,domain,problem):
     expect(":init",lista[0], domain)
     for elem in lista[1:]:
         initCond = checkSingleProblemCondition(elem,domain,problem)
-        problem.addCondition(initCond)
+        if initCond:    #Se non ha tornato None (errore) allora aggiungilo
+            problem.addCondition(initCond)
     
 def checkGoal(lista,domain,problem):
     expect(":goal",lista[0], domain)
@@ -88,19 +94,24 @@ def problemChecker(problemFileName, domain):
         checkInit(result[i],domain,problem)
         i += 1
         checkGoal(result[i],domain,problem)
+        if domain.errors:
+            if len(domain.errors)>1:
+                print(f"\n FOUND {len(domain.errors)} ERRORS IN THE PROBLEM:\n")
+            for err in domain.errors:
+                printSynError(err, problemFileName, input_filePr)
+                print()
+            return None
         return problem
 
     except ParseError as err:
         print(err)
-    except (SynError,SupportException) as err:
-        line = err.line
-        word = err.word
-        line_file = re.sub(r'^[\t\s]*|\t', '',input_filePr[line][:-1])
-        print(f'  File "{problemFileName}", line {line+1}')
-        print(f"    {line_file}")
-        pos = findIndexInText(word,line_file)
-        if pos != -1:
-            print(" " * pos + "^")
-        print(f'SyntaxPddlError: {err}')
+    except (SynError,SupportException) as error:
+        if domain and domain.errors:
+            print(f"\n FOUND {len(domain.errors)+1} ERRORS IN THE PROBLEM:\n")
+            for err in domain.errors:
+                printSynError(err, problemFileName, input_filePr)
+                print()
+        printSynError(error, problemFileName, input_filePr)
+        print()
     
     
