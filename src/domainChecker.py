@@ -10,12 +10,29 @@ SUPPORTED_REQUIREMENTS = ["typing", "strips", "adl", "negative-preconditions", "
                           
 SUPPORTED_LOGIC = ["and", "or", "imply", "forall", "exists", "when", "not"]
 
+KEY_WORD = [":action",":parameters", ":precondition", ":effect"]
+
+current_line = None
+
+def extract(token):
+    global current_line 
+    if type(token) == str:
+        raise SynError(f"Missing an open round bracket before {token}", current_line, token)
+    elif type(token) == int:
+        raise SynError(f"Missing an open round bracket at the line {token}", token, "")
+    elif type(token) == list:
+        (word, n_line) = computeElemInList(token)
+        current_line = n_line
+        raise SynError(f'There is an closed round bracket missing before this parenthesis opening', n_line, "\("+word)
+    elif type(token) == tuple:
+        return token
+    raise SynError("",0,"")      #Non può essere qualcosa diverso da tupla stringa o lista
         
 #Function that take an expected expression and the expression and check that they are equal, if not they ryse an SynError.
 def expect(expected, current_token, domain, err=True):
     if type(current_token) == list:
         return expect(expected, current_token[0], domain, err)
-    (word, n_line) = current_token
+    (word, n_line) = extract(current_token)
     if not word == expected:
         if err:
             domain.addErrors(SynError(f'Expected "{expected}" but we have "{word}".', n_line, word))
@@ -29,7 +46,7 @@ def computeElemInList(elem):
     return elem
  
 def expectStarting(expected, current_token, domain):
-    (word, n_line) = current_token
+    (word, n_line) = extract(current_token)
     if not word[:len(expected)] == expected:
         domain.addErrors(SynError(f'Expected "{expected}" before "{word}".', n_line, word))
         return False
@@ -40,14 +57,15 @@ def checkName(lista, domain, subject="domain"):
     if not expect(subject,lista[0], domain):
         return None
     if len(lista) > 2:
-        (word, n_line) = lista[2]
+        (word, n_line) = extract(lista[2])
         domain.addErrors(SynError(f'The {subject} name can only have one word, find "{word}".', n_line, word))
     return lista[1][0]
     
 def checkRequirements(lista, domain):
     expect(":requirements",lista[0], domain)
-    for (req,n_line) in lista[1:]:
-        if not expectStarting(":",(req,n_line), domain):    #Se non inizia con due punti aggiungi l'errore e passa avanti
+    for elem in lista[1:]:
+        (req, n_line) = extract(elem)
+        if not expectStarting(":",elem, domain):    #Se non inizia con due punti aggiungi l'errore e passa avanti
             continue
         if req[1:] not in SUPPORTED_REQUIREMENTS:
             domain.addErrors(SupportException(f"requirement {req[1:]} is not supported.",n_line,req))
@@ -70,10 +88,10 @@ def checkTypesObjects(lista, domain):
     waitingTypeFather = []
     i = 1
     while i<len(lista):
-        (name,n_line) = lista[i]
+        (name,n_line) = extract(lista[i])
         if name == "-": #Allora l'elemento successivo sarà l'oggetto genitore di tutti quelli precedenti. 
             i+=1
-            (name,n_line) = lista[i]    
+            (name,n_line) = extract(lista[i])   
             parObj = domain.getObject(name)  
             if not parObj:  #Controllo che effettivamente esiste l'oggetto gentiore altrimenti lo creo
                 parObj = Object(name)
@@ -109,10 +127,13 @@ def checkVariables(lista, domain, variable=True):
     waitingType = []
     i = 0
     while i<len(lista):
-        (elem,n_line) = lista[i]
+        (elem,n_line) = extract(lista[i])
+        if elem in KEY_WORD:    #Se è una parola chiave allora hai scordato di chiudere la parentesi ha quello prima
+            (elem,n_line) = lista[i-1]
+            raise SynError(f'A closed parenthesis is missing after  "{elem}"', n_line, elem)
         if elem == "-": #Allora l'elemento successivo sarà l'oggetto di tutti i parametri precedenti. 
             i+=1
-            (elem,n_line) = lista[i]    
+            (elem,n_line) = extract(lista[i])   
             typ = domain.getObject(elem) 
             if not typ:  #Controllo che effettivamente esiste l'oggetto gentiore
                 domain.addErrors(SynError(f'types "{elem}" doesn\'t exist.', n_line, elem)) #Se non esiste mi salvo l'errore
@@ -142,7 +163,7 @@ def analyzePredInCond(name, params, n_line, parameters, nameAction, domain):
             return  #E finisci di controllare questo predicato, passa al prossimo predicato
         predicate = Predicate("=",['a','b'])
     if not predicate.lenArguments()==len(params):   #Se vedi che hai più argomenti di quanto 
-        domain.addErrors(SynError(f'Predicate "{name}" must have {predicate.lenArguments()} arguments, find {len(params)} arguments in action {nameAction}.', n_line, name))
+        domain.addErrors(SynError(f'Predicate "{name}" must have {predicate.lenArguments()} arguments in action {nameAction}. Missing a closing parenthesis closing the predicate', n_line, name))
         return  #E finisci di controllare questo predicato, passa al prossimo predicato
     for param in params:
         if param[0] not in parameters:
@@ -151,13 +172,15 @@ def analyzePredInCond(name, params, n_line, parameters, nameAction, domain):
 
 def computeLogicExpression(lista,parameters,nameAction,domain,notAllowed = [],currNotAllowed = []):
     if type(lista[0]) == str:   #Se è str vuol dire che non è stata messa la parentesi tonda prima dell'espressione logica
+        if lista[0] in KEY_WORD:    #Se questa è una parola chiave allora manca una parentesi che chiude prima
+            raise SynError(f'A closed parenthesis is missing before  "{lista[0]}"', lista[1], lista[0])   #Lancia un errore bloccante
         domain.addErrors(SynError(f'Need a parentesis before {lista[0]} in action {nameAction}',lista[1], lista[0]))
-        return None #Allora aggiungi l'errore e passa avanti (prossima exp logica)
+        return False #Allora aggiungi l'errore e passa avanti (prossima exp logica) [Aggiungo False e non None per andare ancora avanti]
     if type(lista[0]) == list:  #Se è una lista vuol dire che ci sono troppe parentesi
        (name,n_line) = computeElemInList(lista[0])
        domain.addErrors(SynError(f'Too many parentheses enclosing {name} in action {nameAction}',n_line, name))
        return None #Allora aggiungi l'errore e passa avanti (prossima exp logica)
-    (exp,n_line) = lista[0]
+    (exp,n_line) = extract(lista[0])
     
     if exp in notAllowed or exp in currNotAllowed:  #Se stai usando un espressione non permessa (esempio: and dopo un and)
         domain.addErrors(SynError(f'You cannot use the expression "{exp}" here', n_line, exp))
@@ -195,15 +218,20 @@ def computeListLogicExpression(lista,parameters,nameAction,domain,notAllowed = [
         nextExp = computeLogicExpression(elem,parameters,nameAction,domain,notAllowed,currNotAllowed)
         if nextExp:         #Se è None vuol dire che c'è stato un errore. Non serve inserire None nella lista
             result.append(nextExp)
+        elif nextExp==False: break         #Altrimenti esci dall'iterazione e passa alla prossima espressione logica
     return result
     
 def analyzeSingleCond(elem, parameters, nameAction, domain):
-    
+    if elem[0][0] in KEY_WORD:    #Se è una parola chiave allora hai scordato di chiudere la parentesi ha quello prima
+        (elem,n_line) = elem[0]
+        raise SynError(f'A closed parenthesis is missing before  "{elem}"', n_line, elem)
     positive = elem[0][0] != "not"      #False if the sentence is a negation
     if not positive:
-        if type(elem[1]) != list or len(elem) > 2:      #Se dopo Not non metti una parentesi tonda...
+        if type(elem[1]) != list:      #Se dopo Not non metti una parentesi tonda...
             domain.addErrors(SynError(f' Error in action {nameAction}. After "not" comes a round bracket.', elem[0][1], "not"))
             return None     #Aggiungi l'errore, ritorna None e passa avanti
+        if len(elem)> 2:
+            raise SynError(f' Error in action {nameAction}. You can use "not" with only one condition. Close the not parenthesis after the condition', elem[0][1], "not")
         elem = elem[1]
     name = elem[0][0]
     analyzePredInCond(name, elem[1:], elem[0][1], parameters, nameAction, domain)
@@ -283,7 +311,15 @@ def domainChecker(domainFileName):
         print(f'Error parsing file "{domainFileName}"')
         print(err)
     
-    except (SynError,SupportException) as err:
+    except (SynError,SupportException) as error:
+        if domain and domain.errors:
+            print(f"\n FOUND {len(domain.errors)+1} ERRORS:\n")
+            for err in domain.errors:
+                printSynError(err, domainFileName, input_file)
+                print()
+        printSynError(error, domainFileName, input_file)
+        print()
+        '''
         line = err.line
         word = err.word
         line_file = re.sub(r'^[\t\s]*|\t', '',input_file[line][:-1])
@@ -293,4 +329,4 @@ def domainChecker(domainFileName):
         if pos != -1:
             print(" " * pos + "^")
         print(f'SyntaxPddlError: {err}')
-    
+        '''

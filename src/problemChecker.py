@@ -1,7 +1,7 @@
 from .pddl import *
 from .utility import *
 from .tokenizer import *
-from .domainChecker import checkName, expect, checkVariables, analyzeCond
+from .domainChecker import checkName, expect, checkVariables, analyzeCond, extract
 
 import re
 

@@ -72,6 +72,54 @@ def start(domainFileName, problemFileName, opt = False):
         problem = None
     if domain and not problemFileName:
         print("The syntax of the domain is correct!")
+        if opt:
+            print("For optimization, it is also necessary to have the problem")
+    elif domain and problem:
+        print("The syntax of the domain and problem are correct!")
+        if opt:         #Se vuoi ottimizzare (L'ottimizzazione avviene solo se hai anche il problema)
+            changed = False
+            actions2merge = checkPossibleActionUnion(domain,problem)
+            if actions2merge:
+                for (a1,a2) in actions2merge:
+                    actionUnion(domain, a1, a2)
+                    changed = True
+                    print(f"Optimization: {a1.name} and {a2.name} merged into {a1.name}-{a2.name}")
+            
+            actions2delete = checkPossibleEliminateAction(domain,problem)
+            if actions2delete:
+                for a in actions2delete:
+                    domain.deleteAction(a)
+                    changed = True
+                    print(f"Optimization: action {a.name} deleted")
+            
+            if changed:
+                fileNameDoOud = os.path.join(os.getcwd(),"out","domain-processed.pddl")
+                rewrite(domain,fileNameDoOud)
+                print(f"The new modified domain is {fileNameDoOud}")
+            else:
+                print("Nothing to optimize")
+
+'''
+def start(domainFileName, problemFileName, opt = False):
+    #Ancora da usare True o False
+    try:
+        domainFileName, problemFileName = checkPathFile(domainFileName, problemFileName)
+    except FileNotFoundError as e:
+        print("\nFile not found! Check the path of the file:")
+        print(str(e)+"\n")
+        return
+    
+    domain = domainChecker(domainFileName)
+    #print("-------------------------DOMAIN-------------------------")
+    #print(domain)
+    if problemFileName and domain:
+        problem = problemChecker(problemFileName, domain)
+        #print("\n-------------------------PROBLEM-------------------------")
+        #print(problem)
+    else:
+        problem = None
+    if domain and not problemFileName:
+        print("The syntax of the domain is correct!")
         num = 5
         print("Enter an option from those listed")
         num = requestDoPrOp("[d] [domain] visualize domain. [q] exit: ")
@@ -126,5 +174,5 @@ def start(domainFileName, problemFileName, opt = False):
                     print(f"The new modified domain is {fileNameDoOud}")
                 else:
                     print("Nothing to optimize")
-    
+'''
     
