@@ -1,3 +1,11 @@
+; Domain gripper-strips modified by adding a new action "turn-off" and a new predicate "turned-off ?g - gripper".
+; If you associate with problem pddl "problem.pddl" then this action turns out to be unnecessary because it is redundant
+; (the goal does not require the gripper to be turned-off).
+; You want to show that the optimizer recognizes that this action is unnecessary and will remove it
+; The command to perform this optimization is: 
+; python ./syntaxChecker.py -d Examples/domainDelete.pddl -p Examples/problem.pddl -o
+
+
 (define (domain gripper-strips)
    (:requirements :strips :typing)
    (:types ball gripper room)

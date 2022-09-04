@@ -1,3 +1,12 @@
+; Pddl domain file containing some typical errors to show how the program behaves in front of them.
+; The errors in particular are:
+; 1) line 15, "?b" was put "cube" type that does not exist instead of "ball"
+; 2) line 16, Missing question mark before "g" which are needed for variables
+; 3) line 21, It says ":parameter" instead of ":parameters", one "s" is missing
+; 4) line 22, "at-robby ?from" has to be inside brackets 
+; 5) line 29, "?gri" is not a parameter that exists, "?gripper" was meant
+; 6) line 32, "free ?gripper" should be put inside round brackets, you need in fact the bracket after the not
+
 (define (domain gripper-strips)
    (:requirements :strips :typing)
    (:types ball gripper room)

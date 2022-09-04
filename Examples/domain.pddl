@@ -1,3 +1,5 @@
+; PDDL gripper domain working.
+
 (define (domain gripper-strips)
    (:requirements :strips :typing)
    (:types ball gripper room)
