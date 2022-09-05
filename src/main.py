@@ -4,13 +4,14 @@ from .domainChecker import domainChecker
 from .optimizer import checkPossibleActionUnion, checkPossibleEliminateAction, actionUnion, rewrite
 
 import os
+import sys
 
 def checkPathFile(domainFileName, problemFileName):
     #Costruisce il path assoluto se il path ricevuto in input è relativo alla cartella Exemples
     if domainFileName[1] != ":" :   #Se non è un path assoluto
         domainFileName = os.path.join(os.getcwd(),domainFileName)
     if problemFileName and problemFileName[1] != ":":
-        problemFileName = os.path.join(os.getcwd(),"Examples",problemFileName)
+        problemFileName = os.path.join(os.getcwd(),problemFileName)
     
     if not os.path.exists(domainFileName):
         raise FileNotFoundError(domainFileName)
@@ -52,7 +53,7 @@ def requestDoPrOp(text):
     print("too many attempts, quit program...")
     return 9
 
-def start(domainFileName, problemFileName, opt = False):
+def start(domainFileName, problemFileName, opt = False, plan = None):
     #Ancora da usare True o False
     try:
         domainFileName, problemFileName = checkPathFile(domainFileName, problemFileName)
@@ -76,8 +77,8 @@ def start(domainFileName, problemFileName, opt = False):
             print("For optimization, it is also necessary to have the problem")
     elif domain and problem:
         print("The syntax of the domain and problem are correct!")
+        changed = False
         if opt:         #Se vuoi ottimizzare (L'ottimizzazione avviene solo se hai anche il problema)
-            changed = False
             actions2merge = checkPossibleActionUnion(domain,problem)
             if actions2merge:
                 for (a1,a2) in actions2merge:
@@ -98,6 +99,22 @@ def start(domainFileName, problemFileName, opt = False):
                 print(f"The new modified domain is {fileNameDoOud}")
             else:
                 print("Nothing to optimize")
+        if plan:    #Se plan allora cerca un piano con fast downard
+            domainFileName = domainFileName if not changed else fileNameDoOud
+            print("Eseguo la pianificazione")
+            os.chdir(os.path.join(os.getcwd(),"downward"))
+            sys.argv = [domainFileName, problemFileName] + plan.split()
+            exec_full(os.path.join(os.getcwd(),"fast-downward.py"))
+            
+def exec_full(filepath):
+    global_namespace = {
+        "__file__": filepath,
+        "__name__": "__main__",
+    }
+    with open(filepath, 'rb') as file:
+        exec(compile(file.read(), filepath, 'exec'), global_namespace)
+
+# Execute the file.
 
 '''
 def start(domainFileName, problemFileName, opt = False):
