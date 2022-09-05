@@ -3,7 +3,7 @@
 ; (the goal does not require the gripper to be turned-off).
 ; You want to show that the optimizer recognizes that this action is unnecessary and will remove it
 ; The command to perform this optimization is: 
-; python ./syntaxChecker.py -d Examples/domainDelete.pddl -p Examples/problem.pddl -o
+; python .\syntaxChecker.py -d Examples\domainDelete.pddl -p Examples\problem.pddl -o
 
 
 (define (domain gripper-strips)

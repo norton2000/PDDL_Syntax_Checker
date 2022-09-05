@@ -2,7 +2,7 @@
 ; It is intended to show that by using the file "problem.pddl" as the problem, since the two added actions must necessarily be executed in sequence,
 ; it does not make sense to execute prepare_grab without performing grab, then the optimizer will recognize this and merge them into a single action.
 ; The command to perform this optimization is: 
-; python ./syntaxChecker.py -d Examples/domainMerge.pddl -p Examples/problem.pddl -o
+; python .\syntaxChecker.py -d Examples\domainMerge.pddl -p Examples\problem.pddl -o
 
 
 (define (domain gripper-strips)

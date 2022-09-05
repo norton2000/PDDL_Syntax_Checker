@@ -50,6 +50,10 @@ python .\syntaxChecker.py -d Examples\domainDelete.pddl -p Examples\problem.pddl
 ```bash
 python .\syntaxChecker.py -d Examples\domainMerge.pddl -p Examples\problem.pddl -o
 ```
+- **domainMovieToOptimize.pddl** and **problemMovie.pddl**: In the first file there is another domain: movie-to-optimize, based on the pddl movie domain, contains some modifications. There are 2 new actions "go-to-ticket-office" and "take-the-ticket". It is intended to show that, using the file "problemMovie.pddl" as the problem, since the two added actions must necessarily be performed in sequence, the optimizer will recognize it and combine them into a single action. Not only that, the optimizer will also recognize rewind-movie-2 as a non-executable action (counter-at-two-hours, the precondition of the action cannot become true in any way) and then delete it. Note how if from the problemMovie.pddl you delete in the goal for example "have-chips" then the action "get-chips" will also be found to be useless to execute in the current problem and thus will be removed by the optimizer. The command to perform this optimization is: 
+```bash
+python .\syntaxChecker.py -d Examples\domainMovieToOptimize.pddl -p Examples\problemMovie.pddl -o
+```
 
 ## PDDL Compatibility
 
