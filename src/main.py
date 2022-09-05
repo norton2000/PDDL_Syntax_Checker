@@ -8,7 +8,7 @@ import os
 def checkPathFile(domainFileName, problemFileName):
     #Costruisce il path assoluto se il path ricevuto in input è relativo alla cartella Exemples
     if domainFileName[1] != ":" :   #Se non è un path assoluto
-        domainFileName = os.path.join(os.getcwd(),"Examples",domainFileName)
+        domainFileName = os.path.join(os.getcwd(),domainFileName)
     if problemFileName and problemFileName[1] != ":":
         problemFileName = os.path.join(os.getcwd(),"Examples",problemFileName)
     
