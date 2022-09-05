@@ -100,11 +100,14 @@ def start(domainFileName, problemFileName, opt = False, plan = None):
             else:
                 print("Nothing to optimize")
         if plan:    #Se plan allora cerca un piano con fast downard
-            domainFileName = domainFileName if not changed else fileNameDoOud
+            if not os.path.exists(os.path.join(os.getcwd(),"downward","fast-downward.py")):
+                print("Fast-downward not found!")
+            domainFileName = domainFileName if not changed else fileNameDoOud   #Se è stato ottimizzato utilizza il dominio ottimizzato
             print("Eseguo la pianificazione")
-            os.chdir(os.path.join(os.getcwd(),"downward"))
-            sys.argv = [domainFileName, problemFileName] + plan.split()
-            exec_full(os.path.join(os.getcwd(),"fast-downward.py"))
+            os.chdir(os.path.join(os.getcwd(),"downward"))  #Aggiungi downward come cartella base per far partire lo script di fastdownward
+            sys.path.append(os.getcwd())        #Aggiungi downard per poter importare le cose direttamente da quella cartella
+            sys.argv = [domainFileName, problemFileName] + plan.split()     #Come argomenti metti il dominio, il problema e tutti quelli dopo il -e
+            exec_full(os.path.join(os.getcwd(),"fast-downward.py"))     #Esegui il codice di fast-downward
             
 def exec_full(filepath):
     global_namespace = {
