@@ -79,7 +79,7 @@ def problemChecker(problemFileName, domain):
         next_token = next(tokens)
         if next_token[0] != "(":
             raise ParseError("Expected '(' at the beginning, got '%s'." % next_token[0])
-        result = list(parse_list_aux(tokens))
+        result = list(parse_list_aux(tokens, domain))
         for tok in tokens:  # Check that generator is exhausted.
             raise ParseError("Unexpected token: %s." % tok)
         i=0

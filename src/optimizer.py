@@ -121,7 +121,6 @@ def checkPossibleActionUnion(domain, problem):      #Controlla se è possibile u
             if effect == other.precondition:        #Gli effetti di 'action' sono all'interno delle precondizioni di 'other'
                 if action == other:     #in questo caso precondizioni e effetti di un azione coincidono... si può fare qualcosa
                     continue
-                 
                 #Controlla che queste non siano pre di qualcos'altro
                 valid = True
                 for cond in allCondinExp(other.precondition):  
