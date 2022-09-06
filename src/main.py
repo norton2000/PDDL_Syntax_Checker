@@ -104,7 +104,7 @@ def start(domainFileName, problemFileName, opt = False, plan = None):
                 print("Fast-downward not found!")
                 return
             domainFileName = domainFileName if not changed else fileNameDoOud   #Se è stato ottimizzato utilizza il dominio ottimizzato
-            print("Eseguo la pianificazione")
+            print("\nStart plannig...\n")
             os.chdir(os.path.join(os.getcwd(),"downward"))  #Aggiungi downward come cartella base per far partire lo script di fastdownward
             sys.path.append(os.getcwd())        #Aggiungi downard per poter importare le cose direttamente da quella cartella
             sys.argv = ['', domainFileName, problemFileName] + plan.split()     #Come argomenti metti il dominio, il problema e tutti quelli dopo il -e (la stringa vuota è dovuta al fatto che viene sovrascritta)
