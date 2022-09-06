@@ -15,17 +15,17 @@ def tokenize(input):
             yield (token.lower(), count_line)
 
 #Function that ricursive check each word. Each parenthesis will become a sublist
-def parse_list_aux(tokenstream):
+def parse_list_aux(tokenstream, domain):
     # Leading "(" has already been swallowed.
     while True:
         try:
             (token, n_line) = next(tokenstream)
         except StopIteration:
+            domain.addErrors(SynError(f"Miss closing a parenthesis at the end of the file", -1, "zzzzzz"))
             return
-            raise ParseError("Missing ')', check all parenthesis")
         if token == ")":
             return
         elif token == "(":
-            yield list(parse_list_aux(tokenstream))
+            yield list(parse_list_aux(tokenstream, domain))
         else:
             yield (token,n_line)

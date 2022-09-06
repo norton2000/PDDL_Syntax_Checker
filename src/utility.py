@@ -26,6 +26,8 @@ def printSynError(err, domainFileName, input_file):
         line = err.line
         word = err.word
         line_file = re.sub(r'^[\t\s]*|\t', '',input_file[line][:-1])
+        if line == -1:                      #In caso indichi l'ultima riga
+            line = len(input_file)-1
         print(f'  File "{domainFileName}", line {line+1}')
         print(f"    {line_file}")
         pos = findIndexInText(word,line_file)
